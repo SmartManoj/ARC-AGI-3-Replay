@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Replay | ARC-AGI-3</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+</head>
+<body>
+    <div class="main-container">
+        <!-- Left Section - Frame Visualizer -->
+        <div class="visualizer-section">
+            {% if is_cloud %}
+            <!-- Cloud mode: URL input -->
+            <div class="url-input-container">
+                <div class="input-group">
+                    <input type="text" id="url-input" class="url-input" placeholder="Enter Replay URL..." onfocus="this.select()">
+                    <button class="load-url-btn" onclick="loadFromUrl()" id="load-url-btn">Load</button>
+                </div>
+            </div>
+            {% else %}
+            <!-- Local mode: File browser -->
+            <div class="file-controls" id="file-controls">
+                <div class="input-group">
+                    <select id="file-select" class="file-select" onchange="loadFile()">
+                        <option value="">Select a recording file...</option>
+                    </select>
+                    <button class="refresh-btn" onclick="refreshRecordings()" title="Refresh recordings">🔄</button>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Loading indicator -->
+            <div class="loading-overlay" id="loading-overlay" style="display: none;">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading recording...</div>
+            </div>
+
+            <div class="canvas-container">
+                <div class="help-tooltip" id="help-tooltip" style="display: none;">
+                    <h4>Keyboard Shortcuts</h4>
+                    <ul>
+                        <li>← → Arrow keys: Navigate frames</li>
+                        <li>Home/End: First/Last frame</li>
+                        <li>Space: Play/Pause</li>
+                        <li>H: Toggle this help</li>
+                    </ul>
+                </div>
+
+                <div class="grid-display" id="grid-display">
+                    <canvas id="grid-canvas" width="400" height="400" onmousemove="showGridTooltip(event)" onmouseleave="hideGridTooltip()"></canvas>
+                    <div id="grid-tooltip" class="grid-tooltip" style="display: none;"></div>
+                </div>
+            </div>
+
+            <div class="navigation-controls">
+                <div class="speed-controls">
+                    <span class="speed-label">Speed:</span>
+                    <button class="speed-button" onclick="toggleSpeed()" id="speed-btn">1x</button>
+                </div>
+                
+                <div class="playback-buttons">
+                    <button class="nav-button" onclick="previousStep()" id="prev-step-btn" title="Previous">⏮</button>
+                    <button class="nav-button play-button" onclick="togglePlayPause()" id="play-btn" title="Play/Pause">▶</button>
+                    <button class="nav-button" onclick="nextStep()" id="next-step-btn" title="Next">⏭</button>
+                </div>
+                
+                <div class="separator"></div>
+                
+                <div class="frame-counter" id="frame-counter">0 / 0</div>
+                
+                <div class="separator"></div>
+                
+                <div class="slider-controls">
+                    <input type="range" id="frame-slider" class="frame-slider" min="1" max="1" value="1" oninput="onSliderChange()" onchange="onSliderChange()">
+                </div>
+                
+                <div class="separator"></div>
+                
+                <div class="steps-controls">
+                    <span class="steps-label">Step:</span>
+                    <input type="number" id="steps-input" class="steps-input" value="1" min="1" placeholder="Step #" onkeypress="handleStepsKeyPress(event)">
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Section - Reasoning Log -->
+        <div class="reasoning-section">
+            <div class="reasoning-header">
+                <div class="reasoning-title">REASONING LOG</div>
+                <div class="reasoning-controls">
+                    <button class="clear-log-btn" onclick="clearReasoningLog()" title="Clear log">🗑️</button>
+                    <button class="export-log-btn" onclick="exportReasoningLog()" title="Export log">📤</button>
+                </div>
+            </div>
+            
+            <div class="reasoning-content" id="reasoning-content">
+                <div class="empty-state">
+                    <div class="empty-icon">📊</div>
+                    <div class="empty-text">No reasoning data yet</div>
+                    <div class="empty-subtext">Load a recording to see reasoning logs</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error modal -->
+    <div class="modal-overlay" id="error-modal" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Error</h3>
+                <button class="close-btn" onclick="closeErrorModal()">×</button>
+            </div>
+            <div class="modal-content" id="error-content">
+                <!-- Error content will be populated by JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn" onclick="closeErrorModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentData = null;
+        let currentFrameIndex = 0;
+        let totalFrames = 0;
+        let reasoningLog = [];
+        let isPlaying = false;
+        let playInterval = null;
+        let currentSpeed = 1;
+        let lastError = null;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-load the default recording immediately
+            autoLoadDefaultRecording();
+            
+            // Load available recordings in background (for potential future use)
+            listRecordings();
+            
+            // Add resize listener for canvas
+            window.addEventListener('resize', handleCanvasResize);
+            
+            // Add Enter key listener for URL input
+            const urlInput = document.getElementById('url-input');
+            if (urlInput) {
+                urlInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        loadFromUrl();
+                    }
+                });
+            }
+
+            // Show environment info
+            console.log(`Frame Visualizer initialized in ${window.location.hostname === 'localhost' ? 'local' : 'cloud'} mode`);
+        });
+
+        function showLoading(show = true) {
+            const overlay = document.getElementById('loading-overlay');
+            overlay.style.display = show ? 'flex' : 'none';
+        }
+
+        function showError(message, details = null) {
+            lastError = { message, details };
+            const modal = document.getElementById('error-modal');
+            const content = document.getElementById('error-content');
+            
+            content.innerHTML = `
+                <div class="error-message">${message}</div>
+                ${details ? `<div class="error-details">${details}</div>` : ''}
+            `;
+            
+            modal.style.display = 'flex';
+        }
+
+        function closeErrorModal() {
+            document.getElementById('error-modal').style.display = 'none';
+        }
+
+        function handleCanvasResize() {
+            // Redraw the current visualization if data exists
+            if (currentData) {
+                updateVisualization(currentData);
+            }
+        }
+
+        async function loadFromUrl() {
+            const urlInput = document.getElementById('url-input');
+            const loadBtn = document.getElementById('load-url-btn');
+            const url = urlInput.value.trim();
+            
+            if (!url) {
+                showError('Please enter a valid replay URL');
+                return;
+            }
+            
+            // Disable button and show loading state
+            loadBtn.disabled = true;
+            loadBtn.textContent = 'Loading...';
+            showLoading(true);
+            
+            try {
+                // Extract game_id and recording_id from URL
+                const urlParts = url.split('/');
+                const game_id = urlParts[4];
+                const recording_id = urlParts[5];
+                
+                if (!game_id || !recording_id) {
+                    throw new Error('Invalid replay URL format');
+                }
+
+                const response = await fetch('/api/load_recording', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ game_id, recording_id })
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                currentData = data;
+                currentFrameIndex = data.frame_index - 1;
+                totalFrames = data.total_frames;
+                updateVisualization(data);
+                updateReasoningLog(data);
+                
+            } catch (error) {
+                showError('Failed to load recording', error.message);
+            } finally {
+                // Re-enable button and hide loading
+                loadBtn.disabled = false;
+                loadBtn.textContent = 'Load';
+                showLoading(false);
+            }
+        }
+
+        function showSuccessMessage(message) {
+            // Create a temporary success notification
+            const notification = document.createElement('div');
+            notification.className = 'success-notification';
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        async function autoLoadDefaultRecording() {
+            showLoading(true);
+            
+            try {
+                const response = await fetch('/api/load_recording', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({})
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.warn(`Auto-load warning: ${data.error}`);
+                    return;
+                }
+
+                currentData = data;
+                currentFrameIndex = data.frame_index - 1;
+                totalFrames = data.total_frames;
+                updateVisualization(data);
+                updateReasoningLog(data);
+                
+            } catch (error) {
+                console.error(`Auto-load error: ${error.message}`);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function listRecordings() {
+            try {
+                const response = await fetch('/api/list_recordings');
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Error loading recordings:', data.error);
+                    return;
+                }
+                
+                const fileSelect = document.getElementById('file-select');
+                if (!fileSelect) return;
+                
+                // Clear existing options except the first one
+                while (fileSelect.children.length > 1) {
+                    fileSelect.removeChild(fileSelect.lastChild);
+                }
+                
+                // Add recording files
+                data.recordings.forEach(recording => {
+                    const option = document.createElement('option');
+                    option.value = recording.path;
+                    option.textContent = `${recording.name} (${formatFileSize(recording.size)})`;
+                    fileSelect.appendChild(option);
+                });
+                
+            } catch (error) {
+                console.error('Error loading recordings:', error);
+            }
+        }
+
+        async function refreshRecordings() {
+            const refreshBtn = document.querySelector('.refresh-btn');
+            if (refreshBtn) {
+                refreshBtn.style.transform = 'rotate(360deg)';
+                setTimeout(() => {
+                    refreshBtn.style.transform = 'rotate(0deg)';
+                }, 1000);
+            }
+            await listRecordings();
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        async function loadFile() {
+            const filepath = document.getElementById('file-select').value;
+            if (!filepath) return;
+            
+            showLoading(true);
+            
+            try {
+                const response = await fetch('/api/load_file', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ filepath: filepath })
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Save the successful file path
+                localStorage.setItem('lastFilePath', filepath);
+                
+                currentData = data;
+                currentFrameIndex = data.frame_index - 1;
+                totalFrames = data.total_frames;
+                updateVisualization(data);
+                updateReasoningLog(data);
+                
+            } catch (error) {
+                showError('Failed to load file', error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function previousStep() {
+            if (!currentData || currentFrameIndex <= 0) return;
+
+            // Stop playback if manually navigating
+            if (isPlaying) {
+                togglePlayPause();
+            }
+
+            try {
+                const response = await fetch('/api/go_to_frame/' + (currentFrameIndex - 1));
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                currentData = data;
+                currentFrameIndex = data.frame_index - 1;
+                updateVisualization(data);
+                updateReasoningLog(data);
+            } catch (error) {
+                showError('Error loading previous frame', error.message);
+            }
+        }
+
+        async function nextStep() {
+            if (!currentData || currentFrameIndex >= totalFrames - 1) return;
+
+            // Stop playback if manually navigating
+            if (isPlaying) {
+                togglePlayPause();
+            }
+
+            try {
+                const response = await fetch('/api/go_to_frame/' + (currentFrameIndex + 1));
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                currentData = data;
+                currentFrameIndex = data.frame_index - 1;
+                updateVisualization(data);
+                updateReasoningLog(data);
+            } catch (error) {
+                showError('Error loading next frame', error.message);
+            }
+        }
+
+        async function goToFirstStep() {
+            if (!currentData) return;
+
+            // Stop playback if manually navigating
+            if (isPlaying) {
+                togglePlayPause();
+            }
+
+            try {
+                const response = await fetch('/api/go_to_frame/0');
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                currentData = data;
+                currentFrameIndex = data.frame_index - 1;
+                updateVisualization(data);
+                updateReasoningLog(data);
+            } catch (error) {
+                showError('Error loading first step', error.message);
+            }
+        }
+
+        async function goToLastStep() {
+            if (!currentData) return;
+
+            // Stop playback if manually navigating
+            if (isPlaying) {
+                togglePlayPause();
+            }
+
+            try {
+                const response = await fetch('/api/go_to_frame/' + (totalFrames - 1));
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                currentData = data;
+                currentFrameIndex = data.frame_index - 1;
+                updateVisualization(data);
+                updateReasoningLog(data);
+            } catch (error) {
+                showError('Error loading last step', error.message);
+            }
+        }
+
+        function togglePlayPause() {
+            const playBtn = document.getElementById('play-btn');
+            
+            if (isPlaying) {
+                // Pause
+                isPlaying = false;
+                if (playInterval) {
+                    clearInterval(playInterval);
+                    playInterval = null;
+                }
+                playBtn.textContent = '▶';
+                playBtn.title = 'Play';
+            } else {
+                // Play
+                isPlaying = true;
+                playBtn.textContent = '⏸';
+                playBtn.title = 'Pause';
+                
+                // Start auto-advancing
+                const intervalTime = 1000 / currentSpeed; // milliseconds per frame
+                playInterval = setInterval(() => {
+                    if (currentFrameIndex < totalFrames - 1) {
+                        nextStep();
+                    } else {
+                        // Stop at the end
+                        isPlaying = false;
+                        playBtn.textContent = '▶';
+                        playBtn.title = 'Play';
+                        if (playInterval) {
+                            clearInterval(playInterval);
+                            playInterval = null;
+                        }
+                    }
+                }, intervalTime);
+            }
+        }
+
+        function toggleSpeed() {
+            const speedBtn = document.getElementById('speed-btn');
+            const speeds = [1, 2, 4, 8];
+            const speedLabels = ['1x', '2x', '4x', '8x'];
+            const currentIndex = speeds.indexOf(currentSpeed);
+            const nextIndex = (currentIndex + 1) % speeds.length;
+            currentSpeed = speeds[nextIndex];
+            speedBtn.textContent = speedLabels[nextIndex];
+            
+            // Update interval if currently playing
+            if (isPlaying && playInterval) {
+                clearInterval(playInterval);
+                const intervalTime = 1000 / currentSpeed;
+                playInterval = setInterval(() => {
+                    if (currentFrameIndex < totalFrames - 1) {
+                        nextStep();
+                    } else {
+                        isPlaying = false;
+                        const playBtn = document.getElementById('play-btn');
+                        playBtn.textContent = '▶';
+                        playBtn.title = 'Play';
+                        if (playInterval) {
+                            clearInterval(playInterval);
+                            playInterval = null;
+                        }
+                    }
+                }, intervalTime);
+            }
+        }
+
+        function toggleHelp() {
+            const helpTooltip = document.getElementById('help-tooltip');
+            if (helpTooltip.style.display === 'none') {
+                helpTooltip.style.display = 'block';
+            } else {
+                helpTooltip.style.display = 'none';
+            }
+        }
+
+        function onSliderChange() {
+            const slider = document.getElementById('frame-slider');
+            const frameIndex = parseInt(slider.value) - 1;
+            
+            if (currentData && frameIndex >= 0 && frameIndex < totalFrames) {
+                goToFrame(frameIndex);
+            }
+        }
+
+        function jumpSteps() {
+            const stepsInput = document.getElementById('steps-input');
+            const targetStep = parseInt(stepsInput.value) || 1;
+            
+            if (!currentData) return;
+            
+            // Convert to 0-based index and ensure it's within bounds
+            const targetFrame = Math.max(0, Math.min(totalFrames - 1, targetStep - 1));
+            
+            goToFrame(targetFrame);
+        }
+
+        function handleStepsKeyPress(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                jumpSteps();
+            }
+        }
+
+        function showGridTooltip(event) {
+            const canvas = event.target;
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            const displaySize = 512;
+            const cellSize = displaySize / 64;
+            
+            // Calculate grid coordinates using actual cell size
+            const col = Math.floor(x / cellSize);
+            const row = Math.floor(y / cellSize);
+            
+            // Ensure coordinates are within bounds
+            if (col >= 0 && col < 64 && row >= 0 && row < 64) {
+                const tooltip = document.getElementById('grid-tooltip');
+                tooltip.textContent = `Grid: (${col}, ${row}) | Cell: Row ${row + 1}, Col ${col + 1}`;
+                tooltip.style.left = event.clientX + 10 + 'px';
+                tooltip.style.top = event.clientY + 20 + 'px';
+                tooltip.style.display = 'block';
+            }
+        }
+
+        function hideGridTooltip() {
+            const tooltip = document.getElementById('grid-tooltip');
+            tooltip.style.display = 'none';
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Only handle shortcuts when not typing in input fields
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
+                return;
+            }
+            
+            switch(e.key) {
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    previousStep();
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    nextStep();
+                    break;
+                case 'Home':
+                    e.preventDefault();
+                    // Go to first frame
+                    if (currentData && currentFrameIndex > 0) {
+                        goToFrame(0);
+                    }
+                    break;
+                case 'End':
+                    e.preventDefault();
+                    // Go to last frame
+                    if (currentData && currentFrameIndex < totalFrames - 1) {
+                        goToFrame(totalFrames - 1);
+                    }
+                    break;
+                case ' ':
+                    e.preventDefault();
+                    togglePlayPause();
+                    break;
+                case 'h':
+                case 'H':
+                    e.preventDefault();
+                    toggleHelp();
+                    break;
+            }
+        });
+
+        async function goToFrame(frameIndex) {
+            if (!currentData) return;
+
+            try {
+                const response = await fetch('/api/go_to_frame/' + frameIndex);
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                currentData = data;
+                currentFrameIndex = data.frame_index - 1;
+                updateVisualization(data);
+                updateReasoningLog(data);
+            } catch (error) {
+                showError('Error loading frame', error.message);
+            }
+        }
+
+        function updateVisualization(data) {
+            const gridDisplay = document.getElementById('grid-display');
+            const gridCanvas = document.getElementById('grid-canvas');
+            
+            // Update frame counter
+            document.getElementById('frame-counter').textContent = `${data.frame_index} / ${data.total_frames}`;
+            
+            // Update slider
+            const slider = document.getElementById('frame-slider');
+            slider.max = data.total_frames;
+            slider.value = data.frame_index;
+            
+            // Update navigation buttons
+            document.getElementById('prev-step-btn').disabled = data.frame_index <= 1;
+            document.getElementById('next-step-btn').disabled = data.frame_index >= data.total_frames;
+
+            // Render the grid based on visualization data
+            const visualization = data.visualization;
+            if (visualization && visualization.type === 'grid') {
+                renderGrid(gridCanvas, visualization.data, data.color_map);
+            } else if (visualization && visualization.type === 'nested') {
+                // Handle 3D nested data by showing the first 2D grid
+                if (visualization.data && visualization.data.length > 0) {
+                    renderGrid(gridCanvas, visualization.data[0], data.color_map);
+                } else {
+                    // No default grid - leave empty
+                    gridCanvas.width = 0;
+                    gridCanvas.height = 0;
+                }
+            } else {
+                if (visualization) {
+                    console.log("Type: " + visualization.type);
+                }
+                console.log("No visualization data found");
+                // No default grid - leave empty
+                gridCanvas.width = 0;
+                gridCanvas.height = 0;
+            }
+        }
+
+        function renderGrid(canvas, gridData, colorMap) {
+            if (!Array.isArray(gridData) || gridData.length === 0) {
+                // No default grid - leave empty
+                canvas.width = 0;
+                canvas.height = 0;
+                return;
+            }
+
+            const rows = gridData.length;
+            const cols = gridData[0].length;
+            
+            // Set canvas size to match display size for crisp rendering
+            const displaySize = 512;
+            const ratio = window.devicePixelRatio || 1;
+
+            canvas.style.width = displaySize + 'px';
+            canvas.style.height = displaySize + 'px';
+            canvas.width = displaySize * ratio;
+            canvas.height = displaySize * ratio;
+
+            const ctx = canvas.getContext('2d');
+            ctx.scale(ratio, ratio);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const cellSize = displaySize / cols;
+            
+            // Draw grid cells first (background)
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    const cell = gridData[i][j];
+                    const color = colorMap[cell] || '#888888';
+                    
+                    // Draw cell background
+                    ctx.fillStyle = color;
+                    ctx.fillRect(j * cellSize, i * cellSize, cellSize, cellSize);
+                }
+            }
+            
+            // Draw internal grid lines with slight offset to avoid overlap
+            ctx.lineWidth = 0.5;
+            ctx.strokeStyle = '#49494988';
+            ctx.beginPath();
+            // Vertical lines
+            for (let j = 0; j < cols; j++) {
+                const x = j * cellSize;
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height / ratio);
+            }
+
+            // Horizontal lines
+            for (let i = 1; i < rows; i++) {
+                const y = i * cellSize;
+                ctx.moveTo(0, y);
+                ctx.lineTo(displaySize, y);
+            }
+            ctx.stroke();
+        }
+
+        function updateReasoningLog(data) {
+            const reasoningContent = document.getElementById('reasoning-content');
+            
+            // Remove empty state if it exists
+            const emptyState = reasoningContent.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            // Add current frame to reasoning log
+            const logEntry = {
+                frame: data.frame_index,
+                reasoning: data.reasoning || null,
+                action_chosen: data.action_chosen,
+                timestamp: new Date().toISOString()
+            };
+            
+            // Check if this frame already exists in the log
+            const existingIndex = reasoningLog.findIndex(entry => entry.frame === data.frame_index);
+            if (existingIndex !== -1) {
+                // Remove existing entry and add updated one at the top
+                reasoningLog.splice(existingIndex, 1);
+                reasoningLog.unshift(logEntry);
+            } else {
+                // Add new entry at the beginning
+                reasoningLog.unshift(logEntry);
+            }
+            
+            // Keep only last 20 entries
+            if (reasoningLog.length > 20) {
+                reasoningLog = reasoningLog.slice(0, 20);
+            }
+            
+            // Render reasoning log
+            reasoningContent.innerHTML = '';
+            reasoningLog.forEach((entry, index) => {
+                const logDiv = document.createElement('div');
+                logDiv.className = 'log-entry';
+                
+                const header = document.createElement('div');
+                header.className = 'log-header';
+                header.onclick = () => toggleLogContent(index);
+                
+                const title = document.createElement('div');
+                title.className = 'log-title';
+                title.textContent = `Frame ${entry.frame}`;
+                
+                const metadata = document.createElement('div');
+                metadata.className = 'log-metadata';
+                let metadataText = '';
+                if (entry.action_chosen && entry.action_chosen !== 'None') {
+                    metadataText += `Action: ${entry.action_chosen}`;
+                }
+                metadata.textContent = metadataText;
+                
+                const showMore = document.createElement('div');
+                showMore.className = 'show-more';
+                showMore.textContent = 'Show less'; // Default to "Show less" since content is visible
+                showMore.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleLogContent(index);
+                };
+                
+                header.appendChild(title);
+                header.appendChild(metadata);
+                header.appendChild(showMore);
+                
+                const content = document.createElement('div');
+                content.className = 'log-content';
+                content.id = `log-content-${index}`;
+                content.style.display = 'block'; // Show all reasoning content by default
+                
+                // Format reasoning data in a more readable way
+                let reasoningHTML = '';
+                if (entry.reasoning) {
+                    reasoningHTML = formatReasoningData(entry.reasoning);
+                } else {
+                    reasoningHTML = '<div class="no-reasoning">No reasoning data available.</div>';
+                }
+                
+                content.innerHTML = reasoningHTML;
+                
+                logDiv.appendChild(header);
+                logDiv.appendChild(content);
+                reasoningContent.appendChild(logDiv);
+            });
+        }
+
+        function formatReasoningData(reasoning) {
+            let html = '<div class="reasoning-data">';
+            
+            // Sort keys for consistent display
+            const sortedKeys = Object.keys(reasoning).sort();
+            
+            for (const key of sortedKeys) {
+                // Skip the fields we want to remove
+                if (['agent_type', 'game_context', 'model', 'reasoning_effort', 'reasoning_tokens', 'response_preview', 'total_reasoning_tokens'].includes(key)) {
+                    continue;
+                }
+                
+                const value = reasoning[key];
+                html += `<div class="reasoning-section">`;
+                html += `<div class="reasoning-key">${escapeHtml(key)}:</div>`;
+                
+                if (typeof value === 'object' && value !== null) {
+                    if (Array.isArray(value)) {
+                        html += `<div class="reasoning-value">`;
+                        for (const item of value) {
+                            html += `<div class="reasoning-item">• ${escapeHtml(String(item))}</div>`;
+                        }
+                        html += `</div>`;
+                    } else {
+                        html += `<div class="reasoning-value">`;
+                        const sortedSubKeys = Object.keys(value).sort();
+                        for (const subKey of sortedSubKeys) {
+                            const subValue = value[subKey];
+                            if (typeof subValue === 'object' && subValue !== null) {
+                                html += `<div class="reasoning-subsection">`;
+                                html += `<div class="reasoning-subkey">${escapeHtml(subKey)}:</div>`;
+                                html += `<div class="reasoning-subvalue">${escapeHtml(JSON.stringify(subValue, null, 2))}</div>`;
+                                html += `</div>`;
+                            } else {
+                                html += `<div class="reasoning-item">${escapeHtml(subKey)}: ${escapeHtml(String(subValue))}</div>`;
+                            }
+                        }
+                        html += `</div>`;
+                    }
+                } else {
+                    html += `<div class="reasoning-value">${escapeHtml(String(value))}</div>`;
+                }
+                
+                html += `</div>`;
+            }
+            
+            html += '</div>';
+            return html;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function toggleLogContent(index) {
+            const content = document.getElementById(`log-content-${index}`);
+            const showMore = content.previousElementSibling.querySelector('.show-more');
+            
+            if (content.style.display === 'none' || content.style.display === '') {
+                content.style.display = 'block';
+                showMore.textContent = 'Show less';
+            } else {
+                content.style.display = 'none';
+                showMore.textContent = 'Show more';
+            }
+        }
+
+        function clearReasoningLog() {
+            reasoningLog = [];
+            const reasoningContent = document.getElementById('reasoning-content');
+            reasoningContent.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">📊</div>
+                    <div class="empty-text">No reasoning data yet</div>
+                    <div class="empty-subtext">Load a recording to see reasoning logs</div>
+                </div>
+            `;
+        }
+
+        function exportReasoningLog() {
+            if (reasoningLog.length === 0) {
+                showError('No reasoning log to export');
+                return;
+            }
+
+            const exportData = {
+                export_timestamp: new Date().toISOString(),
+                total_entries: reasoningLog.length,
+                entries: reasoningLog
+            };
+
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `reasoning_log_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showSuccessMessage('Reasoning log exported successfully');
+        }
+    </script>
+</body>
+</html> 
