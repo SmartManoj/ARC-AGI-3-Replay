@@ -855,10 +855,15 @@
         function formatReasoningData(reasoning) {
             let html = '<div class="reasoning-data">';
             
-            // Sort keys for consistent display
+            // Sort keys for consistent display, but prioritize short_description
             const sortedKeys = Object.keys(reasoning).sort();
             
-            for (const key of sortedKeys) {
+            // Move short_description to the front if it exists
+            const priorityKeys = ['short_description'];
+            const otherKeys = sortedKeys.filter(key => !priorityKeys.includes(key));
+            const finalKeys = [...priorityKeys.filter(key => sortedKeys.includes(key)), ...otherKeys];
+            
+            for (const key of finalKeys) {
                 // Skip the fields we want to remove
                 if (['agent_type', 'game_context', 'model', 'reasoning_effort', 'reasoning_tokens', 'response_preview', 'total_reasoning_tokens'].includes(key)) {
                     continue;
@@ -866,7 +871,9 @@
                 
                 const value = reasoning[key];
                 html += `<div class="reasoning-section">`;
-                html += `<div class="reasoning-key">${escapeHtml(key)}:</div>`;
+                // Remove underscores from key names for display
+                const displayKey = key.replace(/_/g, ' ');
+                html += `<div class="reasoning-key">${escapeHtml(displayKey)}:</div>`;
                 
                 if (typeof value === 'object' && value !== null) {
                     if (Array.isArray(value)) {
