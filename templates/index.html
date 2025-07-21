@@ -396,11 +396,11 @@
             }
         }
 
-        async function nextStep() {
+        async function nextStep(fromPlayback = false) {
             if (!currentData || currentFrameIndex >= totalFrames - 1) return;
 
-            // Stop playback if manually navigating
-            if (isPlaying) {
+            // Stop playback if manually navigating (but not if called from playback)
+            if (isPlaying && !fromPlayback) {
                 togglePlayPause();
             }
 
@@ -493,7 +493,7 @@
                 const intervalTime = 1000 / currentSpeed; // milliseconds per frame
                 playInterval = setInterval(() => {
                     if (currentFrameIndex < totalFrames - 1) {
-                        nextStep();
+                        nextStep(true);
                     } else {
                         // Stop at the end
                         isPlaying = false;
@@ -523,7 +523,7 @@
                 const intervalTime = 1000 / currentSpeed;
                 playInterval = setInterval(() => {
                     if (currentFrameIndex < totalFrames - 1) {
-                        nextStep();
+                        nextStep(true);
                     } else {
                         isPlaying = false;
                         const playBtn = document.getElementById('play-btn');
