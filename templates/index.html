@@ -130,14 +130,18 @@
         let playInterval = null;
         let currentSpeed = 1;
         let lastError = null;
+        let isCloud = {{ 'true' if is_cloud else 'false' }};
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
-            // Auto-load the default recording immediately
-            autoLoadDefaultRecording();
+            if (isCloud) {
+                // Auto-load the default recording
+                autoLoadDefaultRecording();
+            } else{
+                // Load available recordings in background 
+                listRecordings();
+            }
             
-            // Load available recordings in background (for potential future use)
-            listRecordings();
             
             // Add resize listener for canvas
             window.addEventListener('resize', handleCanvasResize);
@@ -309,6 +313,12 @@
                     option.textContent = `${recording.name} (${formatFileSize(recording.size)})`;
                     fileSelect.appendChild(option);
                 });
+
+                // Load the first recording by default
+                if (data.recordings.length > 0) {
+                    fileSelect.value = data.recordings[0].path;
+                    loadFile();
+                }
                 
             } catch (error) {
                 console.error('Error loading recordings:', error);
