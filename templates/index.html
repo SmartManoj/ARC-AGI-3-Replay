@@ -15,7 +15,7 @@
             <!-- Cloud mode: URL input and file upload -->
             <div class="url-input-container">
                 <div class="input-group">
-                    <input type="text" id="url-input" class="url-input" placeholder="Enter Replay URL..." onfocus="this.select()">
+                    <input type="text" id="url-input" class="url-input" placeholder="Enter Replay URL..." onfocus="this.select()" value="{{ arcprize_url or '' }}">
                     <button class="load-url-btn" onclick="loadFromUrl()" id="load-url-btn">Load</button>
                     <input type="file" id="file-upload" class="file-upload" accept=".jsonl" onchange="handleFileUpload(event)" style="display: none;">
                     <button class="upload-btn" onclick="document.getElementById('file-upload').click()" id="upload-btn">📎 Upload File</button>
@@ -137,8 +137,17 @@
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
             if (isCloud) {
-                // Auto-load the default recording
-                autoLoadDefaultRecording();
+                // Check if we have game_id and recording_id from template
+                const gameId = '{{ game_id }}' || null;
+                const recordingId = '{{ recording_id }}' || null;
+                
+                if (gameId && recordingId) {
+                    // Auto-load the recording from parameters
+                    autoLoadRecordingFromParams(gameId, recordingId);
+                } else {
+                    // Auto-load the default recording
+                    autoLoadDefaultRecording();
+                }
             } else{
                 // Load available recordings in background 
                 listRecordings();
@@ -303,6 +312,38 @@
             setTimeout(() => {
                 notification.remove();
             }, 3000);
+        }
+
+        async function autoLoadRecordingFromParams(gameId, recordingId) {
+            showLoading(true);
+            
+            try {
+                const response = await fetch('/api/load_recording', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ game_id: gameId, recording_id: recordingId })
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.warn(`Auto-load warning: ${data.error}`);
+                    return;
+                }
+
+                currentData = data;
+                currentFrameIndex = data.frame_index - 1;
+                totalFrames = data.total_frames;
+                updateVisualization(data);
+                updateReasoningLog(data);
+                
+            } catch (error) {
+                console.error(`Auto-load error: ${error}`);
+            } finally {
+                showLoading(false);
+            }
         }
 
         async function autoLoadDefaultRecording() {

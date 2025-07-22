@@ -243,7 +243,29 @@ visualizer = FrameVisualizer()
 @app.route('/')
 def index():
     """Main page with environment info"""
-    return render_template('index.html', is_cloud=is_cloud, debug_mode=debug_mode)
+    return render_template('index.html', 
+                         is_cloud=is_cloud, 
+                         debug_mode=debug_mode)
+
+@app.route('/<game_id>/<recording_id>')
+def replay_url(game_id, recording_id):
+    """Handle replay URLs in the format /{game_id}/{recording_id}"""
+    # Validate lengths
+    if len(game_id) != 17:
+        return jsonify({"error": f"Invalid game_id length: {len(game_id)}, expected 17"}), 400
+    
+    if len(recording_id) != 36:
+        return jsonify({"error": f"Invalid recording_id length: {len(recording_id)}, expected 36"}), 400
+    
+    # Construct the three.arcprize.org URL
+    arcprize_url = f"https://three.arcprize.org/replay/{game_id}/{recording_id}"
+    
+    return render_template('index.html', 
+                         is_cloud=is_cloud, 
+                         debug_mode=debug_mode,
+                         game_id=game_id,
+                         recording_id=recording_id,
+                         arcprize_url=arcprize_url)
 
 @app.route('/api/load_recording', methods=['POST'])
 def api_load_recording():
@@ -252,6 +274,13 @@ def api_load_recording():
         data = request.get_json()
         game_id = data.get('game_id', visualizer.default_game_id)
         recording_id = data.get('recording_id', visualizer.default_recording_id)
+        
+        # Validate lengths if provided
+        if game_id and len(game_id) != 17:
+            return jsonify({"error": f"Invalid game_id length: {len(game_id)}, expected 17"}), 400
+        
+        if recording_id and len(recording_id) != 36:
+            return jsonify({"error": f"Invalid recording_id length: {len(recording_id)}, expected 36"}), 400
         
         result = visualizer.load_recording(game_id, recording_id)
         if 'error' not in result:
