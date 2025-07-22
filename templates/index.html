@@ -12,11 +12,13 @@
         <!-- Left Section - Frame Visualizer -->
         <div class="visualizer-section">
             {% if is_cloud %}
-            <!-- Cloud mode: URL input -->
+            <!-- Cloud mode: URL input and file upload -->
             <div class="url-input-container">
                 <div class="input-group">
                     <input type="text" id="url-input" class="url-input" placeholder="Enter Replay URL..." onfocus="this.select()">
                     <button class="load-url-btn" onclick="loadFromUrl()" id="load-url-btn">Load</button>
+                    <input type="file" id="file-upload" class="file-upload" accept=".jsonl" onchange="handleFileUpload(event)" style="display: none;">
+                    <button class="upload-btn" onclick="document.getElementById('file-upload').click()" id="upload-btn">📎 Upload File</button>
                 </div>
             </div>
             {% else %}
@@ -243,6 +245,51 @@
                 loadBtn.disabled = false;
                 loadBtn.textContent = 'Load';
                 showLoading(false);
+            }
+        }
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const uploadBtn = document.getElementById('upload-btn');
+            const originalText = uploadBtn.textContent;
+            
+            // Disable button and show loading state
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Uploading...';
+            showLoading(true);
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const response = await fetch('/api/upload_file', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                currentData = data;
+                currentFrameIndex = data.frame_index - 1;
+                totalFrames = data.total_frames;
+                updateVisualization(data);
+                updateReasoningLog(data);
+            } catch (error) {
+                showError('Failed to upload file', error);
+            } finally {
+                // Re-enable button and hide loading
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = originalText;
+                showLoading(false);
+                
+                // Clear the file input
+                event.target.value = '';
             }
         }
 

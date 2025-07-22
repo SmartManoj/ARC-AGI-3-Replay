@@ -307,6 +307,50 @@ def api_go_to_frame(frame_index):
         logger.error(f"Error in go_to_frame API: {str(e)}")
         return jsonify({"error": f"Internal server error: {str(e)}"}), 500
 
+@app.route('/api/upload_file', methods=['POST'])
+def api_upload_file():
+    """API endpoint to upload and load a recording file"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+        
+        # Check file extension
+        if not file.filename.lower().endswith(('.jsonl')):
+            return jsonify({"error": "Only .jsonl files are supported"}), 400
+        
+        # Create temporary file
+        import tempfile
+        import shutil
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.jsonl') as temp_file:
+            file.save(temp_file.name)
+            temp_path = temp_file.name
+        
+        try:
+            # Load the uploaded file
+            result = visualizer.load_file(temp_path)
+            if 'error' not in result:
+                # Add visualization data
+                result['visualization'] = visualizer.get_frame_data_for_visualization()
+                result['color_map'] = visualizer.color_map
+                return jsonify(result)
+            else:
+                return jsonify(result), 400
+        finally:
+            # Clean up temporary file
+            try:
+                os.unlink(temp_path)
+            except Exception as e:
+                logger.warning(f"Failed to clean up temp file {temp_path}: {e}")
+            
+    except Exception as e:
+        logger.error(f"Error in upload_file API: {str(e)}")
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+
 @app.route('/api/list_recordings')
 def api_list_recordings():
     """API endpoint to list available recording files"""

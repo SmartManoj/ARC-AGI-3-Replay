@@ -594,6 +594,31 @@ body {
     gap: 10px;
 }
 
+.file-upload {
+    display: none;
+}
+
+.upload-btn {
+    padding: 8px 12px;
+    background: #666;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.3s;
+    white-space: nowrap;
+}
+
+.upload-btn:hover {
+    background: #777;
+}
+
+.upload-btn:disabled {
+    background: #444;
+    cursor: not-allowed;
+}
+
 .url-input {
     flex: 1;
     padding: 10px 12px;
