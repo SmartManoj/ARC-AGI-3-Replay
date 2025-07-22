@@ -165,17 +165,19 @@
             overlay.style.display = show ? 'flex' : 'none';
         }
 
-        function showError(message, details = null) {
-            lastError = { message, details };
+        function showError(message, error = null) {
+            lastError = { message, error };
             const modal = document.getElementById('error-modal');
             const content = document.getElementById('error-content');
             
             content.innerHTML = `
                 <div class="error-message">${message}</div>
-                ${details ? `<div class="error-details">${details}</div>` : ''}
+                ${error.message ? `<div class="error-details">${error.message}</div>` : ''}
             `;
             
             modal.style.display = 'flex';
+            console.trace(error);
+            throw new Error(error);
         }
 
         function closeErrorModal() {
@@ -235,7 +237,7 @@
                 updateReasoningLog(data);
                 
             } catch (error) {
-                showError('Failed to load recording', error.message);
+                showError('Failed to load recording', error);
             } finally {
                 // Re-enable button and hide loading
                 loadBtn.disabled = false;
@@ -282,7 +284,7 @@
                 updateReasoningLog(data);
                 
             } catch (error) {
-                console.error(`Auto-load error: ${error.message}`);
+                console.error(`Auto-load error: ${error}`);
             } finally {
                 showLoading(false);
             }
@@ -375,7 +377,7 @@
                 updateReasoningLog(data);
                 
             } catch (error) {
-                showError('Failed to load file', error.message);
+                showError('Failed to load file', error);
             } finally {
                 showLoading(false);
             }
@@ -402,7 +404,7 @@
                 updateVisualization(data);
                 updateReasoningLog(data);
             } catch (error) {
-                showError('Error loading previous frame', error.message);
+                showError('Error loading previous frame', error);
             }
         }
 
@@ -427,7 +429,7 @@
                 updateVisualization(data);
                 updateReasoningLog(data);
             } catch (error) {
-                showError('Error loading next frame', error.message);
+                showError('Error loading next frame', error);
             }
         }
 
@@ -452,7 +454,7 @@
                 updateVisualization(data);
                 updateReasoningLog(data);
             } catch (error) {
-                showError('Error loading first step', error.message);
+                showError('Error loading first step', error);
             }
         }
 
@@ -477,7 +479,7 @@
                 updateVisualization(data);
                 updateReasoningLog(data);
             } catch (error) {
-                showError('Error loading last step', error.message);
+                showError('Error loading last step', error);
             }
         }
 
@@ -671,7 +673,7 @@
                 updateVisualization(data);
                 updateReasoningLog(data);
             } catch (error) {
-                showError('Error loading frame', error.message);
+                showError('Error loading frame', error);
             }
         }
 
