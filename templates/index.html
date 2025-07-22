@@ -827,7 +827,7 @@
                 if (entry.action_chosen) {
                     metadataText += `Action: ${entry.action_chosen}`;
                     if (entry.action_chosen == 'ACTION6'){
-                        metadataText += ` (${entry.reasoning.coordinates.x}, ${entry.reasoning.coordinates.y})`;
+                        metadataText += ` (${entry.reasoning.x}, ${entry.reasoning.y})`;
                     }
                 }
                 metadata.textContent = metadataText;
