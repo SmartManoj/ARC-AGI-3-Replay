@@ -654,6 +654,14 @@
                     e.preventDefault();
                     toggleHelp();
                     break;
+                case 'Enter':
+                    e.preventDefault();
+                    // Close error modal if it's open
+                    const errorModal = document.getElementById('error-modal');
+                    if (errorModal && errorModal.style.display === 'flex') {
+                        closeErrorModal();
+                    }
+                    break;
             }
         });
 
