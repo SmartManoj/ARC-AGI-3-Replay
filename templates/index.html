@@ -157,7 +157,7 @@
             }
 
             // Show environment info
-            console.log(`Frame Visualizer initialized in ${window.location.hostname === 'localhost' ? 'local' : 'cloud'} mode`);
+            console.log(`Frame Visualizer initialized in ${isCloud ? 'cloud' : 'local'} mode`);
         });
 
         function showLoading(show = true) {
