@@ -2,6 +2,18 @@
 
 A modern web-based visualization tool for analyzing ARC (Abstraction and Reasoning Corpus) agent recordings. This application provides an enhanced interface for stepping through recorded frames and viewing detailed reasoning logs from AI agents solving grid-based puzzles.
 
+
+## 🔗 Bookmarklet
+
+Add this bookmarklet to your browser to quickly redirect from the original ARC replay site to this enhanced version:
+
+```javascript
+javascript:window.location=window.location.href.replace('three.arcprize.org/replay','arc-agi-3-replay.onrender.com')
+```
+
+Simply drag this code to your bookmarks bar or create a new bookmark with this URL.
+
+
 ## 🎯 Core Functionality
 
 ### Frame Navigation
