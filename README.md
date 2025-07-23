@@ -2,6 +2,18 @@
 
 A modern web-based visualization tool for analyzing ARC (Abstraction and Reasoning Corpus) agent recordings. This application provides an enhanced interface for stepping through recorded frames and viewing detailed reasoning logs from AI agents solving grid-based puzzles.
 
+## 🔄 Redirector Extension (Recommended)
+
+For automatic redirection, install the [Redirector Chrome extension](https://chromewebstore.google.com/detail/redirector/ocgpenflpmgnfapjedencafcfakcekcd):
+
+2. **Import Configuration:**
+   - Click the Redirector icon in your Chrome toolbar
+   - Click edit redirects option
+   - Click "Import" and select `Replay Redirector Config.json` from this project
+   - The configuration will automatically redirect ARC replay URLs to this enhanced version
+
+This method provides a seamless redirection.
+
 
 ## 🔗 Bookmarklet
 

@@ -1,0 +1,24 @@
+{
+    "createdBy": "Redirector v3.5.4",
+    "createdAt": "2025-07-23T06:07:50.340Z",
+    "redirects": [
+        {
+            "description": "Replay Redirector",
+            "exampleUrl": "https://three.arcprize.org/replay/ft09-16726c5b26ff/07583620-5a41-4b41-b5e4-a357620906d3",
+            "exampleResult": "https://arc-agi-3-replay.onrender.com/ft09-16726c5b26ff/07583620-5a41-4b41-b5e4-a357620906d3",
+            "error": null,
+            "includePattern": "https://three.arcprize.org/replay/(.*)",
+            "excludePattern": "",
+            "patternDesc": "",
+            "redirectUrl": "https://arc-agi-3-replay.onrender.com/$1",
+            "patternType": "R",
+            "processMatches": "noProcessing",
+            "disabled": false,
+            "grouped": false,
+            "appliesTo": [
+                "main_frame",
+                "history"
+            ]
+        }
+    ]
+}
