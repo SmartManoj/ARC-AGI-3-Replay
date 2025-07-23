@@ -938,9 +938,19 @@
                     toggleLogContent(index);
                 };
                 
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.textContent = '📋';
+                copyBtn.title = 'Copy frame data';
+                copyBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    copyFrameData(entry);
+                };
+                
                 header.appendChild(title);
                 header.appendChild(metadata);
                 header.appendChild(showMore);
+                header.appendChild(copyBtn);
                 
                 const content = document.createElement('div');
                 content.className = 'log-content';
@@ -1049,6 +1059,24 @@
                     <div class="empty-subtext">Load a recording to see reasoning logs</div>
                 </div>
             `;
+        }
+
+        function copyFrameData(entry) {
+            const dataToCopy = {
+                frame: entry.frame,
+                action_chosen: entry.action_chosen,
+                reasoning: entry.reasoning,
+                timestamp: entry.timestamp
+            };
+            
+            const jsonString = JSON.stringify(dataToCopy, null, 2);
+            
+            navigator.clipboard.writeText(jsonString).then(() => {
+                showSuccessMessage('Frame data copied to clipboard');
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                showError('Failed to copy frame data');
+            });
         }
 
         function exportReasoningLog() {

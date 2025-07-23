@@ -572,6 +572,31 @@ body {
     text-decoration: underline;
 }
 
+.copy-btn {
+    padding: 4px 6px;
+    background: #555;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 10px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+}
+
+.copy-btn:hover {
+    background: #666;
+    transform: scale(1.05);
+}
+
+.copy-btn:active {
+    transform: scale(0.95);
+}
+
 /* File loading controls */
 .file-controls {
     z-index: 100;
