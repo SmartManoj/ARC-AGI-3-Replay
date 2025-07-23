@@ -179,7 +179,7 @@ class FrameVisualizer:
         if 0 <= frame_index < len(self.frames):
             self.current_frame_index = frame_index
             return self.load_current_frame()
-        return {"error": f"Invalid frame index: {frame_index}"}
+        return {"error": f"Invalid frame index: {frame_index}; total frames: {len(self.frames)}"}
     
     def get_frame_data_for_visualization(self) -> dict:
         """Get frame data formatted for visualization"""
