@@ -941,7 +941,12 @@
                 if (entry.action_chosen) {
                     metadataText += `Action: ${entry.action_chosen}`;
                     if (entry.action_chosen == 'ACTION6'){
-                        metadataText += ` (${entry.reasoning.x}, ${entry.reasoning.y})`;
+                        objectNumber = entry.reasoning.object_number;
+                        if (objectNumber){
+                            metadataText += ` ( Click ${objectNumber})`;
+                        } else {
+                            metadataText += ` (${entry.reasoning.x}, ${entry.reasoning.y})`;
+                        }
                     }
                 }
                 metadata.textContent = metadataText;
