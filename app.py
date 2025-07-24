@@ -171,6 +171,7 @@ class FrameVisualizer:
                 "reasoning": reasoning,
                 "session_id": self.session_id,
                 "level": self.level,
+                "color_map": self.color_map,
             }
         return {"error": "Invalid frame index"}
     
@@ -181,61 +182,7 @@ class FrameVisualizer:
             return self.load_current_frame()
         return {"error": f"Invalid frame index: {frame_index}; total frames: {len(self.frames)}"}
     
-    def get_frame_data_for_visualization(self) -> dict:
-        """Get frame data formatted for visualization"""
-        if not self.frame_data:
-            return {"type": "empty", "data": None}
-        
-        # Handle different frame data structures
-        if isinstance(self.frame_data, list):
-            if self.is_nested_list_data(self.frame_data):
-                return {"type": "nested", "data": self.frame_data}
-            elif self.is_valid_grid_data(self.frame_data):
-                return {"type": "grid", "data": self.frame_data}
-            else:
-                return {"type": "list", "data": self.frame_data}
-        else:
-            return {"type": "other", "data": self.frame_data}
-    
-    def is_nested_list_data(self, data: Any) -> bool:
-        """Check if data is a nested list structure"""
-        try:
-            if not isinstance(data, list):
-                return False
-            
-            # Check if it's a 3D structure like [[[1,2,3], [4,5,6]], [[7,8,9], [10,11,12]]]
-            if len(data) > 0 and isinstance(data[0], list):
-                if len(data[0]) > 0 and isinstance(data[0][0], list):
-                    return True
-            
-            return False
-        except:
-            return False
-    
-    def is_valid_grid_data(self, data: Any) -> bool:
-        """Check if the data is a valid 2D grid"""
-        try:
-            if not isinstance(data, list) or not data:
-                return False
-            
-            # Check if it's a 2D grid
-            if not isinstance(data[0], list):
-                return False
-            
-            # Check if all rows have the same length
-            row_length = len(data[0])
-            for row in data:
-                if not isinstance(row, list) or len(row) != row_length:
-                    return False
-                
-                # Check if all elements are numbers
-                for cell in row:
-                    if not isinstance(cell, (int, float)):
-                        return False
-            
-            return True
-        except:
-            return False
+
 
 # Create global instance
 visualizer = FrameVisualizer()
@@ -284,9 +231,6 @@ def api_load_recording():
         
         result = visualizer.load_recording(game_id, recording_id)
         if 'error' not in result:
-            # Add visualization data
-            result['visualization'] = visualizer.get_frame_data_for_visualization()
-            result['color_map'] = visualizer.color_map
             return jsonify(result)
         else:
             return jsonify(result), 400
@@ -309,9 +253,6 @@ def api_load_file():
         
         result = visualizer.load_file(filepath)
         if 'error' not in result:
-            # Add visualization data
-            result['visualization'] = visualizer.get_frame_data_for_visualization()
-            result['color_map'] = visualizer.color_map
             return jsonify(result)
         else:
             return jsonify(result), 400
@@ -326,8 +267,6 @@ def api_go_to_frame(frame_index):
     try:
         result = visualizer.go_to_frame(frame_index)
         if 'error' not in result:
-            result['visualization'] = visualizer.get_frame_data_for_visualization()
-            result['color_map'] = visualizer.color_map
             return jsonify(result)
         else:
             return jsonify(result), 400
@@ -363,9 +302,6 @@ def api_upload_file():
             # Load the uploaded file
             result = visualizer.load_file(temp_path)
             if 'error' not in result:
-                # Add visualization data
-                result['visualization'] = visualizer.get_frame_data_for_visualization()
-                result['color_map'] = visualizer.color_map
                 return jsonify(result)
             else:
                 return jsonify(result), 400

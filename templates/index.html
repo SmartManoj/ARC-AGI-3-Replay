@@ -805,25 +805,13 @@
             document.getElementById('prev-step-btn').disabled = data.frame_index <= 1;
             document.getElementById('next-step-btn').disabled = data.frame_index >= data.total_frames;
 
-            // Render the grid based on visualization data
-            const visualization = data.visualization;
-            if (visualization && visualization.type === 'grid') {
-                renderGrid(gridCanvas, visualization.data, data.color_map);
-            } else if (visualization && visualization.type === 'nested') {
-                // Handle 3D nested data by showing the first 2D grid
-                if (visualization.data && visualization.data.length > 0) {
-                    renderGrid(gridCanvas, visualization.data[0], data.color_map);
-                } else {
-                    // No default grid - leave empty
-                    gridCanvas.width = 0;
-                    gridCanvas.height = 0;
-                }
+            // Render the grid based on frame data (always 3D)
+            const frameData = data.frame_data;
+            if (frameData && frameData.length > 0) {
+                // Take the first 2D slice from the 3D data
+                renderGrid(gridCanvas, frameData[0], data.color_map);
             } else {
-                if (visualization) {
-                    console.log("Type: " + visualization.type);
-                }
-                console.log("No visualization data found");
-                // No default grid - leave empty
+                // No frame data - leave empty
                 gridCanvas.width = 0;
                 gridCanvas.height = 0;
             }
