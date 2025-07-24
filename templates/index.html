@@ -141,9 +141,13 @@
                 const gameId = '{{ game_id }}' || null;
                 const recordingId = '{{ recording_id }}' || null;
                 
+                // Extract step parameter from URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const targetStep = parseInt(urlParams.get('step')) || 1;
+                
                 if (gameId && recordingId) {
                     // Auto-load the recording from parameters
-                    autoLoadRecordingFromParams(gameId, recordingId);
+                    autoLoadRecordingFromParams(gameId, recordingId, targetStep);
                 } else {
                     // Auto-load the default recording
                     autoLoadDefaultRecording();
@@ -218,14 +222,18 @@
             showLoading(true);
             
             try {
-                // Extract game_id and recording_id from URL
-                const urlParts = url.split('/');
+                // Parse URL to extract parameters
+                const urlObj = new URL(url);
+                const urlParts = urlObj.pathname.split('/');
                 const game_id = urlParts[4];
                 const recording_id = urlParts[5];
                 
                 if (!game_id || !recording_id) {
                     throw new Error('Invalid replay URL format');
                 }
+
+                // Extract step parameter from URL
+                const targetStep = parseInt(urlObj.searchParams.get('step')) || 1;
 
                 const response = await fetch('/api/load_recording', {
                     method: 'POST',
@@ -246,6 +254,10 @@
                 totalFrames = data.total_frames;
                 updateVisualization(data);
                 updateReasoningLog(data);
+                
+                if (targetStep > 0 && targetStep <= data.total_frames) {
+                    await goToFrame(targetStep - 1);
+                }
                 
             } catch (error) {
                 showError('Failed to load recording', error);
@@ -314,7 +326,7 @@
             }, 3000);
         }
 
-        async function autoLoadRecordingFromParams(gameId, recordingId) {
+        async function autoLoadRecordingFromParams(gameId, recordingId, targetStep) {
             showLoading(true);
             
             try {
@@ -338,6 +350,10 @@
                 totalFrames = data.total_frames;
                 updateVisualization(data);
                 updateReasoningLog(data);
+                
+                if (targetStep > 0 && targetStep <= data.total_frames) {
+                    await goToFrame(targetStep - 1);
+                }
                 
             } catch (error) {
                 console.error(`Auto-load error: ${error}`);
