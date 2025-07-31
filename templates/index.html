@@ -809,7 +809,7 @@
             const frameData = data.frame_data;
             if (frameData && frameData.length > 0) {
                 // Take the first 2D slice from the 3D data
-                renderGrid(gridCanvas, frameData[0], data.color_map);
+                renderGrid(gridCanvas, frameData.at(-1), data.color_map);
             } else {
                 // No frame data - leave empty
                 gridCanvas.width = 0;
@@ -927,14 +927,13 @@
                 metadata.className = 'log-metadata';
                 let metadataText = '';
                 if (entry.action_chosen) {
-                    metadataText += `Action: ${entry.action_chosen}`;
+                    metadataText += `${entry.action_chosen}`;
                     if (entry.action_chosen == 'ACTION6'){
                         objectNumber = entry.reasoning.object_number;
                         if (objectNumber){
-                            metadataText += ` ( Click ${objectNumber})`;
-                        } else {
-                            metadataText += ` (${entry.reasoning.x}, ${entry.reasoning.y})`;
-                        }
+                            metadataText += ` | Obj ${objectNumber} | `;
+                            }
+                        metadataText += ` (${entry.reasoning.x}, ${entry.reasoning.y})`;
                     }
                 }
                 metadata.textContent = metadataText;
