@@ -51,7 +51,7 @@
                 </div>
 
                 <div class="grid-display" id="grid-display">
-                    <canvas id="grid-canvas" width="400" height="400" onmousemove="showGridTooltip(event)" onmouseleave="hideGridTooltip()"></canvas>
+                    <canvas id="grid-canvas" width="400" height="400" onmousemove="showGridTooltip(event)" onmouseleave="hideGridTooltip()" onclick="copyGridCoordinates(event)"></canvas>
                     <div id="grid-tooltip" class="grid-tooltip" style="display: none;"></div>
                 </div>
             </div>
@@ -717,6 +717,31 @@
         function hideGridTooltip() {
             const tooltip = document.getElementById('grid-tooltip');
             tooltip.style.display = 'none';
+        }
+
+        function copyGridCoordinates(event) {
+            const canvas = event.target;
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            const displaySize = 512;
+            const cellSize = displaySize / 64;
+            
+            // Calculate grid coordinates using actual cell size
+            const col = Math.floor(x / cellSize);
+            const row = Math.floor(y / cellSize);
+            
+            // Ensure coordinates are within bounds
+            if (col >= 0 && col < 64 && row >= 0 && row < 64) {
+                const coordinates = `(${col}, ${row})`;
+                navigator.clipboard.writeText(coordinates).then(() => {
+                    showSuccessMessage(`Copied coordinates: ${coordinates}`);
+                }).catch(err => {
+                    console.error('Failed to copy coordinates: ', err);
+                    showError('Failed to copy coordinates');
+                });
+            }
         }
 
         // Keyboard shortcuts
