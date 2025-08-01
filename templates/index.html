@@ -707,7 +707,8 @@
             // Ensure coordinates are within bounds
             if (col >= 0 && col < 64 && row >= 0 && row < 64) {
                 const tooltip = document.getElementById('grid-tooltip');
-                tooltip.textContent = `Grid: (${col}, ${row}) | Cell: Row ${row + 1}, Col ${col + 1}`;
+                const color = currentData.frame_data.at(-1)[row][col]
+                tooltip.innerHTML = `Grid: (${col}, ${row}) | Cell: Row ${row + 1}, Col ${col + 1}<br> Color: ${currentData.color_map[color][1]} (${color})`;
                 tooltip.style.left = event.clientX + 10 + 'px';
                 tooltip.style.top = event.clientY + 20 + 'px';
                 tooltip.style.display = 'block';
@@ -873,7 +874,7 @@
             for (let i = 0; i < rows; i++) {
                 for (let j = 0; j < cols; j++) {
                     const cell = gridData[i][j];
-                    const color = colorMap[cell] || '#888888';
+                    const color = colorMap[cell][0] || '#888888';
                     
                     // Draw cell background
                     ctx.fillStyle = color;

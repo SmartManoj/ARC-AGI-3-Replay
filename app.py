@@ -52,22 +52,22 @@ class FrameVisualizer:
     def create_color_map(self):
         """Create color mapping for grid values"""
         return {
-            0: "#FFFFFFFF",  # White
-            1: "#CCCCCCFF",  # Light gray
-            2: "#999999FF",  # Gray
-            3: "#666666FF",  # Dark gray
-            4: "#333333FF",  # Very dark gray
-            5: "#000000FF",  # Black
-            6: "#E53AA3FF",  # Pink
-            7: "#FF7BCCFF",  # Light pink
-            8: "#F93C31FF",  # Red
-            9: "#1E93FFFF",  # Blue
-            10: "#88D8F1FF", # Light blue
-            11: "#FFDC00FF", # Yellow
-            12: "#FF851BFF", # Orange
-            13: "#921231FF", # Dark red
-            14: "#4FCC30FF", # Green
-            15: "#A356D6FF"  # Purple
+            0: ("#FFFFFFFF", 'White'),
+            1: ("#CCCCCCFF", 'Light gray'),
+            2: ("#999999FF", 'Gray'),
+            3: ("#666666FF", 'Dark gray'),
+            4: ("#333333FF", 'Charcoal'),
+            5: ("#000000FF", 'Black'),
+            6: ("#E53AA3FF", 'Pink'),
+            7: ("#FF7BCCFF", 'Light pink'),
+            8: ("#F93C31FF", 'Red'),
+            9: ("#1E93FFFF", 'Blue'),
+            10: ("#88D8F1FF", 'Light blue'),
+            11: ("#FFDC00FF", 'Yellow'),
+            12: ("#FF851BFF", 'Orange'),
+            13: ("#921231FF", 'Dark red'),
+            14: ("#4FCC30FF", 'Green'),
+            15: ("#A356D6FF", 'Purple'),
         }
     
     def load_recording(self, game_id: str = None, recording_id: str = None) -> dict:
